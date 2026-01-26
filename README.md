@@ -2,6 +2,52 @@
 
 A Docker-based dynamic DNS updater for AWS Route 53 that automatically updates A and AAAA records when your public IP changes.
 
+## Quick Start
+
+Get up and running in 3 steps:
+
+**1. Create a directory and `.env` file:**
+```bash
+mkdir route53-updater && cd route53-updater
+nano .env
+```
+
+**2. Add your AWS credentials to `.env`:**
+```bash
+AWS_ACCESS_KEY_ID=your_access_key_here
+AWS_SECRET_ACCESS_KEY=your_secret_key_here
+HOSTED_ZONE_ID=Z1234567890ABC
+RECORD_NAMES=home.example.com
+```
+
+**3. Create `docker-compose.yml`:**
+```yaml
+version: '3.8'
+services:
+  route53-updater:
+    image: ghcr.io/c1aytonnet/route53-updater:latest
+    container_name: route53-updater
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      AWS_REGION: us-east-1
+      UPDATE_IPV4: "true"
+      UPDATE_IPV6: "false"
+      CHECK_INTERVAL: "300"
+      TTL: "300"
+```
+
+**4. Start it:**
+```bash
+docker compose up -d
+docker compose logs -f
+```
+
+That's it! For detailed setup instructions including how to get your AWS credentials, see the [Complete Setup Guide](#complete-setup-guide) below.
+
+---
+
 ## Features
 
 - Dual-source IP validation (checkip.amazonaws.com + icanhazip.com)
