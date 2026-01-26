@@ -22,9 +22,31 @@ A Docker-based dynamic DNS updater for AWS Route 53 that automatically updates A
 
 ### Step 1: Get the Files
 
-You have two options:
+You have three options:
 
-#### Option A: Clone from GitHub (Recommended)
+#### Option A: Use Pre-built Docker Image (Easiest - Recommended)
+
+No need to clone the repository! Just create your configuration and pull the image:
+
+1. Create a directory for your configuration:
+   ```bash
+   mkdir -p ~/route53-updater
+   cd ~/route53-updater
+   ```
+
+2. Create a `.env` file with your AWS credentials (see Step 2 and 3 below for details)
+
+3. Create a `docker-compose.yml` or add to your existing compose file (see Step 4 below)
+
+4. Pull and run:
+   ```bash
+   docker compose pull
+   docker compose up -d
+   ```
+
+The pre-built image is available at: `ghcr.io/c1aytonnet/route53-updater:latest`
+
+#### Option B: Clone from GitHub
 
 ```bash
 # Clone the repository
@@ -34,7 +56,7 @@ git clone https://github.com/c1aytonnet/route53-updater.git
 cd route53-updater
 ```
 
-#### Option B: Download Manually
+#### Option C: Download Manually
 
 1. Go to https://github.com/c1aytonnet/route53-updater
 2. Click the green **"Code"** button
@@ -149,7 +171,53 @@ Your AWS user needs permission to update Route 53 records:
 
 You have two deployment options:
 
-#### Option A: Standalone Deployment (Single App)
+#### Option A: Using Pre-built Image (Recommended)
+
+If you're using the pre-built Docker image from GitHub Container Registry:
+
+**For Standalone Deployment:**
+```yaml
+version: '3.8'
+
+services:
+  route53-updater:
+    image: ghcr.io/c1aytonnet/route53-updater:latest
+    container_name: route53-updater
+    restart: unless-stopped
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      HOSTED_ZONE_ID: ${HOSTED_ZONE_ID}
+      RECORD_NAMES: ${RECORD_NAMES}
+      AWS_REGION: us-east-1
+      UPDATE_IPV4: "true"
+      UPDATE_IPV6: "false"
+      CHECK_INTERVAL: "300"
+      TTL: "300"
+```
+
+**For Centralized Deployment:**
+```yaml
+services:
+  route53-updater:
+    image: ghcr.io/c1aytonnet/route53-updater:latest
+    container_name: route53-updater
+    restart: unless-stopped
+    env_file:
+      - ./route53-updater/.env
+    environment:
+      AWS_REGION: us-east-1
+      UPDATE_IPV4: "true"
+      UPDATE_IPV6: "false"
+      CHECK_INTERVAL: "300"
+      TTL: "300"
+```
+
+#### Option B: Building from Source
+
+If you cloned the repository and want to build locally:
+
+**Standalone Deployment:**
 
 If you're running this as a standalone application, edit `docker-compose.yml`:
 
@@ -176,7 +244,7 @@ Common changes:
 - **Check more often**: Change `CHECK_INTERVAL: "300"` to `"60"` (1 minute)
 - **Check less often**: Change `CHECK_INTERVAL: "300"` to `"900"` (15 minutes)
 
-#### Option B: Centralized Deployment (Multiple Apps)
+**Centralized Deployment:**
 
 If you manage multiple Docker apps from a central `compose.yaml` file, add this service definition:
 
@@ -200,7 +268,27 @@ Make sure your `.env` file is in the `route53-updater` subdirectory with your AW
 
 ### Step 5: Start the Application
 
-#### For Standalone Deployment:
+#### Using Pre-built Image:
+
+1. Pull and start the container:
+   ```bash
+   docker compose pull
+   docker compose up -d
+   ```
+
+2. Check if it's running:
+   ```bash
+   docker compose ps
+   ```
+
+3. View the logs to confirm it's working:
+   ```bash
+   docker compose logs -f route53-updater
+   ```
+
+#### Building from Source:
+
+**For Standalone Deployment:**
 
 1. Build and start the container:
    ```bash
@@ -251,7 +339,7 @@ Make sure your `.env` file is in the `route53-updater` subdirectory with your AW
 
 4. Press `Ctrl+C` to exit the logs (the container keeps running)
 
-#### For Centralized Deployment:
+**For Centralized Deployment:**
 
 1. From your main Docker apps directory, rebuild and restart all services:
    ```bash
@@ -344,10 +432,17 @@ Look for error messages at the top of the output.
 # Stop and remove the container
 docker compose down
 
-# Remove the Docker image
+# Remove the Docker image (if using pre-built)
+docker rmi ghcr.io/c1aytonnet/route53-updater:latest
+
+# Or if built from source
 docker rmi route53-updater_route53-updater
 
-# Delete the folder
+# Delete the folder (if cloned)
 cd ..
 rm -rf route53-updater
 ```
+
+---
+
+*Created with vibe coding on AWS Kiro.*
