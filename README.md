@@ -20,18 +20,30 @@ A Docker-based dynamic DNS updater for AWS Route 53 that automatically updates A
 
 ## Complete Setup Guide
 
-### Step 1: Download the Files
+### Step 1: Get the Files
 
-You should have these files in a folder on your computer:
+You have two options:
+
+#### Option A: Clone from GitHub (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/c1aytonnet/route53-updater.git
+
+# Navigate into the folder
+cd route53-updater
 ```
-route53-updater/
-├── app.py
-├── Dockerfile
-├── requirements.txt
-├── docker-compose.yml
-├── .env.example
-└── README.md
-```
+
+#### Option B: Download Manually
+
+1. Go to https://github.com/c1aytonnet/route53-updater
+2. Click the green **"Code"** button
+3. Click **"Download ZIP"**
+4. Extract the ZIP file
+5. Open Terminal and navigate to the extracted folder:
+   ```bash
+   cd ~/Downloads/route53-updater-main
+   ```
 
 ### Step 2: Get Your AWS Information
 
@@ -91,9 +103,10 @@ Your AWS user needs permission to update Route 53 records:
 
 ### Step 3: Create Your Configuration File
 
-1. Open a terminal and navigate to your `route53-updater` folder:
+1. Make sure you're in the `route53-updater` folder:
    ```bash
-   cd route53-updater
+   pwd
+   # Should show: /path/to/route53-updater
    ```
 
 2. Copy the example file:
