@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  route53-updater:
+    build: .
+    container_name: route53-updater
+    restart: unless-stopped
+    environment:
+      # AWS Credentials (required)
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: us-east-1
+      
+      # Route 53 Configuration (required)
+      HOSTED_ZONE_ID: ${HOSTED_ZONE_ID}
+      RECORD_NAME: ${RECORD_NAME}
+      
+      # Update Settings
+      UPDATE_IPV4: "true"
+      UPDATE_IPV6: "false"
+      CHECK_INTERVAL: "300"  # seconds (5 minutes)
+      TTL: "300"  # DNS TTL in seconds
