@@ -141,7 +141,11 @@ Your AWS user needs permission to update Route 53 records:
 
 ### Step 4: Customize Settings (Optional)
 
-Edit `docker-compose.yml` if you want to change default settings:
+You have two deployment options:
+
+#### Option A: Standalone Deployment (Single App)
+
+If you're running this as a standalone application, edit `docker-compose.yml`:
 
 ```bash
 nano docker-compose.yml
@@ -166,7 +170,31 @@ Common changes:
 - **Check more often**: Change `CHECK_INTERVAL: "300"` to `"60"` (1 minute)
 - **Check less often**: Change `CHECK_INTERVAL: "300"` to `"900"` (15 minutes)
 
+#### Option B: Centralized Deployment (Multiple Apps)
+
+If you manage multiple Docker apps from a central `compose.yaml` file, add this service definition:
+
+```yaml
+services:
+  route53-updater:
+    build: ./route53-updater
+    container_name: route53-updater
+    restart: unless-stopped
+    env_file:
+      - ./route53-updater/.env  # Points to the .env file in the subdirectory
+    environment:
+      AWS_REGION: us-east-1
+      UPDATE_IPV4: "true"
+      UPDATE_IPV6: "false"
+      CHECK_INTERVAL: "300"
+      TTL: "300"
+```
+
+Make sure your `.env` file is in the `route53-updater` subdirectory with your AWS credentials.
+
 ### Step 5: Start the Application
+
+#### For Standalone Deployment:
 
 1. Build and start the container:
    ```bash
@@ -214,6 +242,25 @@ Common changes:
    ```
 
 4. Press `Ctrl+C` to exit the logs (the container keeps running)
+
+#### For Centralized Deployment:
+
+1. From your main Docker apps directory, rebuild and restart all services:
+   ```bash
+   docker compose up -d --build
+   ```
+
+   Or to start only the route53-updater service:
+   ```bash
+   docker compose up -d route53-updater
+   ```
+
+2. View logs for this specific service:
+   ```bash
+   docker compose logs -f route53-updater
+   ```
+
+3. Press `Ctrl+C` to exit the logs (the container keeps running)
 
 ---
 
