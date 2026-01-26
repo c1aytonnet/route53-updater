@@ -128,16 +128,22 @@ Your AWS user needs permission to update Route 53 records:
 
    # Route 53 Configuration (from Step 2a)
    HOSTED_ZONE_ID=Z1234567890ABC
-   RECORD_NAME=home.example.com
+   RECORD_NAMES=home.example.com,vpn.example.com,server.example.com
    ```
 
 5. Replace:
    - `AKIAIOSFODNN7EXAMPLE` with your actual Access Key ID
    - `wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` with your actual Secret Access Key
    - `Z1234567890ABC` with your actual Hosted Zone ID
-   - `home.example.com` with the subdomain you want to update
+   - `home.example.com,vpn.example.com,server.example.com` with your record names (comma-separated, no spaces)
+   
+   **Note:** You can specify one or multiple records. All records will be updated with the same IP address.
+   - Single record: `RECORD_NAMES=home.example.com`
+   - Multiple records: `RECORD_NAMES=home.example.com,vpn.example.com,server.example.com`
 
 6. Save and exit (in nano: `Ctrl+O`, `Enter`, `Ctrl+X`)
+
+**Backward Compatibility:** The app still supports the old `RECORD_NAME` variable for single records, but `RECORD_NAMES` is now preferred.
 
 ### Step 4: Customize Settings (Optional)
 
@@ -228,7 +234,7 @@ Make sure your `.env` file is in the `route53-updater` subdirectory with your AW
    You should see:
    ```
    Starting Route 53 DNS Updater
-   Record: home.example.com
+   Records: home.example.com, vpn.example.com, server.example.com
    Hosted Zone: Z1234567890ABC
    Check interval: 300 seconds
    IPv4 updates: enabled
@@ -238,6 +244,8 @@ Make sure your `.env` file is in the `route53-updater` subdirectory with your AW
      Fetched ipv4 from ipv4.icanhazip.com: 203.0.113.45
    ✓ ipv4 validated: 203.0.113.45 (both sources agree)
    ✓ Updated A record home.example.com to 203.0.113.45
+   ✓ Updated A record vpn.example.com to 203.0.113.45
+   ✓ Updated A record server.example.com to 203.0.113.45
    Next check in 300 seconds...
    ```
 
@@ -295,9 +303,10 @@ The container will automatically restart unless you run `docker compose down`. I
 
 ## Troubleshooting
 
-### "ERROR: HOSTED_ZONE_ID and RECORD_NAME must be set"
+### "ERROR: HOSTED_ZONE_ID and RECORD_NAMES must be set"
 - Check your `.env` file exists and has the correct values
 - Make sure there are no spaces around the `=` sign
+- For multiple records, use commas without spaces: `RECORD_NAMES=home.example.com,vpn.example.com`
 
 ### "Error updating DNS record: AccessDenied"
 - Your IAM user doesn't have the right permissions

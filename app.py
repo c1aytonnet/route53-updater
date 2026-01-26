@@ -111,10 +111,13 @@ def update_route53_record(route53, hosted_zone_id, record_name, record_type, new
 def main():
     # Load configuration from environment variables
     hosted_zone_id = os.getenv('HOSTED_ZONE_ID')
-    record_name = os.getenv('RECORD_NAME')
+    record_names_str = os.getenv('RECORD_NAMES', os.getenv('RECORD_NAME', ''))
     update_ipv4 = os.getenv('UPDATE_IPV4', 'true').lower() == 'true'
     update_ipv6 = os.getenv('UPDATE_IPV6', 'false').lower() == 'true'
     aws_region = os.getenv('AWS_REGION', 'us-east-1')
+    
+    # Parse record names (comma-separated)
+    record_names = [name.strip() for name in record_names_str.split(',') if name.strip()]
     
     # Validate and sanitize numeric inputs
     try:
@@ -142,8 +145,12 @@ def main():
         ttl = 300
     
     # Validate required configuration
-    if not hosted_zone_id or not record_name:
-        print("ERROR: HOSTED_ZONE_ID and RECORD_NAME must be set")
+    if not hosted_zone_id:
+        print("ERROR: HOSTED_ZONE_ID must be set")
+        return
+    
+    if not record_names:
+        print("ERROR: RECORD_NAMES (or RECORD_NAME) must be set")
         return
     
     if not update_ipv4 and not update_ipv6:
@@ -151,7 +158,7 @@ def main():
         return
     
     print(f"Starting Route 53 DNS Updater")
-    print(f"Record: {record_name}")
+    print(f"Records: {', '.join(record_names)}")
     print(f"Hosted Zone: {hosted_zone_id}")
     print(f"Check interval: {check_interval} seconds")
     print(f"IPv4 updates: {'enabled' if update_ipv4 else 'disabled'}")
@@ -161,8 +168,11 @@ def main():
     # Initialize Route 53 client
     route53 = boto3.client('route53', region_name=aws_region)
     
-    # Rate limiting: Track last update time per record type
-    last_update = {'A': 0, 'AAAA': 0}
+    # Rate limiting: Track last update time per record and type
+    last_update = {}
+    for record_name in record_names:
+        last_update[f"{record_name}:A"] = 0
+        last_update[f"{record_name}:AAAA"] = 0
     min_update_interval = 30  # Minimum 30 seconds between updates to same record
     
     while True:
@@ -171,35 +181,39 @@ def main():
             if update_ipv4:
                 current_ip = get_public_ip('ipv4')
                 if current_ip:
-                    dns_ip = get_current_dns_record(route53, hosted_zone_id, record_name, 'A')
-                    if dns_ip != current_ip:
-                        # Rate limiting check
-                        time_since_last = time.time() - last_update['A']
-                        if time_since_last < min_update_interval:
-                            print(f"⚠ Rate limit: Skipping IPv4 update (last update {time_since_last:.0f}s ago)")
+                    for record_name in record_names:
+                        dns_ip = get_current_dns_record(route53, hosted_zone_id, record_name, 'A')
+                        if dns_ip != current_ip:
+                            # Rate limiting check
+                            rate_key = f"{record_name}:A"
+                            time_since_last = time.time() - last_update[rate_key]
+                            if time_since_last < min_update_interval:
+                                print(f"⚠ Rate limit: Skipping IPv4 update for {record_name} (last update {time_since_last:.0f}s ago)")
+                            else:
+                                print(f"IPv4 change detected for {record_name}: {dns_ip} → {current_ip}")
+                                if update_route53_record(route53, hosted_zone_id, record_name, 'A', current_ip, ttl):
+                                    last_update[rate_key] = time.time()
                         else:
-                            print(f"IPv4 change detected: {dns_ip} → {current_ip}")
-                            if update_route53_record(route53, hosted_zone_id, record_name, 'A', current_ip, ttl):
-                                last_update['A'] = time.time()
-                    else:
-                        print(f"IPv4 unchanged: {current_ip}")
+                            print(f"IPv4 unchanged for {record_name}: {current_ip}")
             
             # Check and update IPv6 (AAAA record)
             if update_ipv6:
                 current_ip = get_public_ip('ipv6')
                 if current_ip:
-                    dns_ip = get_current_dns_record(route53, hosted_zone_id, record_name, 'AAAA')
-                    if dns_ip != current_ip:
-                        # Rate limiting check
-                        time_since_last = time.time() - last_update['AAAA']
-                        if time_since_last < min_update_interval:
-                            print(f"⚠ Rate limit: Skipping IPv6 update (last update {time_since_last:.0f}s ago)")
+                    for record_name in record_names:
+                        dns_ip = get_current_dns_record(route53, hosted_zone_id, record_name, 'AAAA')
+                        if dns_ip != current_ip:
+                            # Rate limiting check
+                            rate_key = f"{record_name}:AAAA"
+                            time_since_last = time.time() - last_update[rate_key]
+                            if time_since_last < min_update_interval:
+                                print(f"⚠ Rate limit: Skipping IPv6 update for {record_name} (last update {time_since_last:.0f}s ago)")
+                            else:
+                                print(f"IPv6 change detected for {record_name}: {dns_ip} → {current_ip}")
+                                if update_route53_record(route53, hosted_zone_id, record_name, 'AAAA', current_ip, ttl):
+                                    last_update[rate_key] = time.time()
                         else:
-                            print(f"IPv6 change detected: {dns_ip} → {current_ip}")
-                            if update_route53_record(route53, hosted_zone_id, record_name, 'AAAA', current_ip, ttl):
-                                last_update['AAAA'] = time.time()
-                    else:
-                        print(f"IPv6 unchanged: {current_ip}")
+                            print(f"IPv6 unchanged for {record_name}: {current_ip}")
             
         except Exception as e:
             print(f"Error in main loop: {e}")
