@@ -4,7 +4,7 @@ A Docker-based dynamic DNS updater for AWS Route 53 that automatically updates A
 
 ## Quick Start
 
-Get up and running in 3 steps:
+Get up and running in 4 steps:
 
 **1. Create a directory and `.env` file:**
 ```bash
@@ -230,11 +230,9 @@ services:
     image: ghcr.io/c1aytonnet/route53-updater:latest
     container_name: route53-updater
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-      HOSTED_ZONE_ID: ${HOSTED_ZONE_ID}
-      RECORD_NAMES: ${RECORD_NAMES}
       AWS_REGION: us-east-1
       UPDATE_IPV4: "true"
       UPDATE_IPV6: "false"
@@ -282,7 +280,7 @@ environment:
   UPDATE_IPV6: "false"       # Set to "true" to enable IPv6 updates
   CHECK_INTERVAL: "300"      # Seconds between checks (300 = 5 minutes)
   TTL: "300"                 # DNS record TTL in seconds
-  AWS_REGION: us-east-1      # Change if your Route 53 is in another region
+  AWS_REGION: us-east-1      # Route 53 is global; us-east-1 is a sensible default
 ```
 
 Common changes:
@@ -338,7 +336,7 @@ Make sure your `.env` file is in the `route53-updater` subdirectory with your AW
 
 1. Build and start the container:
    ```bash
-   docker compose up -d
+   docker compose up -d --build
    ```
 
    You should see:
@@ -437,9 +435,12 @@ The container will automatically restart unless you run `docker compose down`. I
 
 ## Troubleshooting
 
-### "ERROR: HOSTED_ZONE_ID and RECORD_NAMES must be set"
-- Check your `.env` file exists and has the correct values
+### "ERROR: HOSTED_ZONE_ID must be set"
+- Check your `.env` file exists and includes `HOSTED_ZONE_ID`
 - Make sure there are no spaces around the `=` sign
+
+### "ERROR: RECORD_NAMES (or RECORD_NAME) must be set"
+- Check your `.env` file exists and includes `RECORD_NAMES`
 - For multiple records, use commas without spaces: `RECORD_NAMES=home.example.com,vpn.example.com`
 
 ### "Error updating DNS record: AccessDenied"
@@ -490,5 +491,3 @@ rm -rf route53-updater
 ```
 
 ---
-
-*Created with vibe coding on AWS Kiro.*

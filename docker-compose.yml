@@ -13,7 +13,7 @@ services:
       
       # Route 53 Configuration (required)
       HOSTED_ZONE_ID: ${HOSTED_ZONE_ID}
-      RECORD_NAME: ${RECORD_NAME}
+      RECORD_NAMES: ${RECORD_NAMES}
       
       # Update Settings
       UPDATE_IPV4: "true"
