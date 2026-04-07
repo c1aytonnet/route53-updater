@@ -1,0 +1,2 @@
+bbbc5c7dedcd4fc81dda97532af274686ce8d575f6597178225ddf2e1ce3d3fb  route53-updater-1.0.0.tar.gz
+1d972205e07d75e16ffad69f7d8fd9c179b5369336ebb20f3a30922c4b36fb77  route53-updater-1.0.0.zip

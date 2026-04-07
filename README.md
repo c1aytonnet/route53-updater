@@ -2,6 +2,8 @@
 
 A Docker-based dynamic DNS updater for AWS Route 53 that automatically updates A and AAAA records when your public IP changes.
 
+Current stable release: `1.0.0`
+
 ## Quick Start
 
 Get up and running in 4 steps:
@@ -45,6 +47,8 @@ docker compose logs -f
 ```
 
 That's it! For detailed setup instructions including how to get your AWS credentials, see the [Complete Setup Guide](#complete-setup-guide) below.
+
+If you prefer to pin a specific release instead of tracking `latest`, use `ghcr.io/c1aytonnet/route53-updater:1.0.0`.
 
 ---
 
@@ -90,7 +94,9 @@ No need to clone the repository! Just create your configuration and pull the ima
    docker compose up -d
    ```
 
-The pre-built image is available at: `ghcr.io/c1aytonnet/route53-updater:latest`
+The pre-built image is available at:
+- `ghcr.io/c1aytonnet/route53-updater:latest` for the newest build from `main`
+- `ghcr.io/c1aytonnet/route53-updater:1.0.0` for this release
 
 #### Option B: Clone from GitHub
 
@@ -220,6 +226,8 @@ You have two deployment options:
 #### Option A: Using Pre-built Image (Recommended)
 
 If you're using the pre-built Docker image from GitHub Container Registry:
+
+Use `:latest` if you want the newest build from `main`, or pin to `:1.0.0` for a predictable release.
 
 **For Standalone Deployment:**
 ```yaml
@@ -366,6 +374,7 @@ Make sure your `.env` file is in the `route53-updater` subdirectory with your AW
    You should see:
    ```
    Starting Route 53 DNS Updater
+   Version: 1.0.0
    Records: home.example.com, vpn.example.com, server.example.com
    Hosted Zone: Z1234567890ABC
    Check interval: 300 seconds
@@ -470,6 +479,12 @@ Look for error messages at the top of the output.
 - The app validates IPs from two independent sources before updating
 - Rate limiting prevents API abuse (max 1 update per 30 seconds per record)
 - All inputs are validated and sanitized
+
+## Releases
+
+- Release notes are tracked in [CHANGELOG.md](CHANGELOG.md).
+- Versioned release assets for `1.0.0` are stored in `release-assets/v1.0.0/`.
+- GitHub Container Registry publishes `latest` from `main` and version tags like `1.0.0` from Git tags such as `v1.0.0`.
 
 ---
 

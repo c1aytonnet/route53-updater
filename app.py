@@ -2,9 +2,24 @@
 import os
 import time
 import ipaddress
+from dataclasses import dataclass
 import requests
 import boto3
 from botocore.exceptions import ClientError
+
+__version__ = "1.0.0"
+
+
+@dataclass(frozen=True)
+class AppConfig:
+    hosted_zone_id: str
+    record_names: list[str]
+    update_ipv4: bool
+    update_ipv6: bool
+    aws_region: str
+    check_interval: int
+    ttl: int
+
 
 def validate_ip_format(ip_string, version):
     """Validate IP address format"""
@@ -108,20 +123,20 @@ def update_route53_record(route53, hosted_zone_id, record_name, record_type, new
         print(f"✗ Error updating DNS record: {e}")
         return False
 
-def main():
-    # Load configuration from environment variables
-    hosted_zone_id = os.getenv('HOSTED_ZONE_ID')
-    record_names_str = os.getenv('RECORD_NAMES', os.getenv('RECORD_NAME', ''))
-    update_ipv4 = os.getenv('UPDATE_IPV4', 'true').lower() == 'true'
-    update_ipv6 = os.getenv('UPDATE_IPV6', 'false').lower() == 'true'
-    aws_region = os.getenv('AWS_REGION', 'us-east-1')
-    
-    # Parse record names (comma-separated)
+def load_config(env=None):
+    """Load and validate configuration from environment variables."""
+    if env is None:
+        env = os.environ
+
+    hosted_zone_id = env.get('HOSTED_ZONE_ID')
+    record_names_str = env.get('RECORD_NAMES', env.get('RECORD_NAME', ''))
+    update_ipv4 = env.get('UPDATE_IPV4', 'true').lower() == 'true'
+    update_ipv6 = env.get('UPDATE_IPV6', 'false').lower() == 'true'
+    aws_region = env.get('AWS_REGION', 'us-east-1')
     record_names = [name.strip() for name in record_names_str.split(',') if name.strip()]
-    
-    # Validate and sanitize numeric inputs
+
     try:
-        check_interval = int(os.getenv('CHECK_INTERVAL', '300'))
+        check_interval = int(env.get('CHECK_INTERVAL', '300'))
         if check_interval < 60:
             print(f"WARNING: CHECK_INTERVAL too low ({check_interval}s), setting to minimum 60s")
             check_interval = 60
@@ -131,9 +146,9 @@ def main():
     except ValueError:
         print("ERROR: CHECK_INTERVAL must be a valid integer, using default 300s")
         check_interval = 300
-    
+
     try:
-        ttl = int(os.getenv('TTL', '300'))
+        ttl = int(env.get('TTL', '300'))
         if ttl < 60:
             print(f"WARNING: TTL too low ({ttl}s), setting to minimum 60s")
             ttl = 60
@@ -143,34 +158,50 @@ def main():
     except ValueError:
         print("ERROR: TTL must be a valid integer, using default 300s")
         ttl = 300
-    
-    # Validate required configuration
+
     if not hosted_zone_id:
         print("ERROR: HOSTED_ZONE_ID must be set")
-        return
-    
+        return None
+
     if not record_names:
         print("ERROR: RECORD_NAMES (or RECORD_NAME) must be set")
-        return
-    
+        return None
+
     if not update_ipv4 and not update_ipv6:
         print("ERROR: At least one of UPDATE_IPV4 or UPDATE_IPV6 must be true")
+        return None
+
+    return AppConfig(
+        hosted_zone_id=hosted_zone_id,
+        record_names=record_names,
+        update_ipv4=update_ipv4,
+        update_ipv6=update_ipv6,
+        aws_region=aws_region,
+        check_interval=check_interval,
+        ttl=ttl,
+    )
+
+
+def main():
+    config = load_config()
+    if config is None:
         return
-    
+
     print(f"Starting Route 53 DNS Updater")
-    print(f"Records: {', '.join(record_names)}")
-    print(f"Hosted Zone: {hosted_zone_id}")
-    print(f"Check interval: {check_interval} seconds")
-    print(f"IPv4 updates: {'enabled' if update_ipv4 else 'disabled'}")
-    print(f"IPv6 updates: {'enabled' if update_ipv6 else 'disabled'}")
+    print(f"Version: {__version__}")
+    print(f"Records: {', '.join(config.record_names)}")
+    print(f"Hosted Zone: {config.hosted_zone_id}")
+    print(f"Check interval: {config.check_interval} seconds")
+    print(f"IPv4 updates: {'enabled' if config.update_ipv4 else 'disabled'}")
+    print(f"IPv6 updates: {'enabled' if config.update_ipv6 else 'disabled'}")
     print("-" * 50)
     
     # Initialize Route 53 client
-    route53 = boto3.client('route53', region_name=aws_region)
+    route53 = boto3.client('route53', region_name=config.aws_region)
     
     # Rate limiting: Track last update time per record and type
     last_update = {}
-    for record_name in record_names:
+    for record_name in config.record_names:
         last_update[f"{record_name}:A"] = 0
         last_update[f"{record_name}:AAAA"] = 0
     min_update_interval = 30  # Minimum 30 seconds between updates to same record
@@ -178,11 +209,11 @@ def main():
     while True:
         try:
             # Check and update IPv4 (A record)
-            if update_ipv4:
+            if config.update_ipv4:
                 current_ip = get_public_ip('ipv4')
                 if current_ip:
-                    for record_name in record_names:
-                        dns_ip = get_current_dns_record(route53, hosted_zone_id, record_name, 'A')
+                    for record_name in config.record_names:
+                        dns_ip = get_current_dns_record(route53, config.hosted_zone_id, record_name, 'A')
                         if dns_ip != current_ip:
                             # Rate limiting check
                             rate_key = f"{record_name}:A"
@@ -191,17 +222,17 @@ def main():
                                 print(f"⚠ Rate limit: Skipping IPv4 update for {record_name} (last update {time_since_last:.0f}s ago)")
                             else:
                                 print(f"IPv4 change detected for {record_name}: {dns_ip} → {current_ip}")
-                                if update_route53_record(route53, hosted_zone_id, record_name, 'A', current_ip, ttl):
+                                if update_route53_record(route53, config.hosted_zone_id, record_name, 'A', current_ip, config.ttl):
                                     last_update[rate_key] = time.time()
                         else:
                             print(f"IPv4 unchanged for {record_name}: {current_ip}")
             
             # Check and update IPv6 (AAAA record)
-            if update_ipv6:
+            if config.update_ipv6:
                 current_ip = get_public_ip('ipv6')
                 if current_ip:
-                    for record_name in record_names:
-                        dns_ip = get_current_dns_record(route53, hosted_zone_id, record_name, 'AAAA')
+                    for record_name in config.record_names:
+                        dns_ip = get_current_dns_record(route53, config.hosted_zone_id, record_name, 'AAAA')
                         if dns_ip != current_ip:
                             # Rate limiting check
                             rate_key = f"{record_name}:AAAA"
@@ -210,7 +241,7 @@ def main():
                                 print(f"⚠ Rate limit: Skipping IPv6 update for {record_name} (last update {time_since_last:.0f}s ago)")
                             else:
                                 print(f"IPv6 change detected for {record_name}: {dns_ip} → {current_ip}")
-                                if update_route53_record(route53, hosted_zone_id, record_name, 'AAAA', current_ip, ttl):
+                                if update_route53_record(route53, config.hosted_zone_id, record_name, 'AAAA', current_ip, config.ttl):
                                     last_update[rate_key] = time.time()
                         else:
                             print(f"IPv6 unchanged for {record_name}: {current_ip}")
@@ -218,8 +249,8 @@ def main():
         except Exception as e:
             print(f"Error in main loop: {e}")
         
-        print(f"Next check in {check_interval} seconds...")
-        time.sleep(check_interval)
+        print(f"Next check in {config.check_interval} seconds...")
+        time.sleep(config.check_interval)
 
 if __name__ == '__main__':
     main()
