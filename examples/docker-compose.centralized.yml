@@ -1,0 +1,13 @@
+services:
+  route53-updater:
+    image: ghcr.io/c1aytonnet/route53-updater:latest
+    container_name: route53-updater
+    restart: unless-stopped
+    env_file:
+      - ./route53-updater/.env
+    environment:
+      AWS_REGION: us-east-1
+      UPDATE_IPV4: "true"
+      UPDATE_IPV6: "false"
+      CHECK_INTERVAL: "300"
+      TTL: "300"
