@@ -194,7 +194,8 @@ Your AWS user needs permission to update Route 53 records:
 2. Click **Add permissions** → **Attach policies directly**
 3. Click **Create policy**
 4. Click the **JSON** tab
-5. Paste this policy (replace `YOUR_HOSTED_ZONE_ID` with your actual ID from step 2a):
+5. Paste this policy (replace `YOUR_HOSTED_ZONE_ID` with your actual ID from step 2a).
+   The same policy is available as [examples/route53-policy.json](examples/route53-policy.json) for copy/paste or automation:
 
 ```json
 {
@@ -525,6 +526,9 @@ Look for error messages at the top of the output.
 - The app validates IPs from two independent sources before updating
 - Rate limiting prevents API abuse (max 1 update per 30 seconds per record)
 - All inputs are validated and sanitized
+- New installs can use [examples/route53-policy.json](examples/route53-policy.json) as a least-privilege IAM policy scoped to one hosted zone
+
+Existing installations do not need to change IAM permissions if the updater is already working. The example policy is provided for new installs or for users who want to tighten a broader Route 53 policy.
 
 ## License
 
