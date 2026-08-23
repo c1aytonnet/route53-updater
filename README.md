@@ -258,6 +258,12 @@ Your AWS user needs permission to update Route 53 records:
    - Single record: `RECORD_NAMES=home.example.com`
    - Multiple records: `RECORD_NAMES=home.example.com,vpn.example.com,server.example.com`
 
+   One running route53-updater instance manages exactly one Route 53 hosted zone. All records listed in `RECORD_NAMES` must belong to the hosted zone set by `HOSTED_ZONE_ID`.
+
+   To update records in multiple hosted zones, run multiple updater instances/containers. Each instance should ideally use its own environment file.
+
+   Do not repeat `HOSTED_ZONE_ID`, `RECORD_NAME`, or `RECORD_NAMES` multiple times in one `.env` file expecting multiple update jobs. Environment variables are single-valued, so later values can override earlier values.
+
 6. Save and exit (in nano: `Ctrl+O`, `Enter`, `Ctrl+X`)
 
 **Backward Compatibility:** The app still supports the old `RECORD_NAME` variable for single records, but `RECORD_NAMES` is now preferred.
@@ -311,6 +317,49 @@ services:
 ```
 
 This same configuration is available in [examples/docker-compose.centralized.yml](examples/docker-compose.centralized.yml).
+
+**For Multiple Hosted Zones:**
+
+Use one updater service per hosted zone, with a separate environment file for each one:
+
+```php-template
+route53-updater-teknrd
+  HOSTED_ZONE_ID=<teknrd-zone>
+  RECORD_NAMES=vpn.teknrd.com,linkwarden.teknrd.com
+
+route53-updater-innojacent
+  HOSTED_ZONE_ID=<innojacent-zone>
+  RECORD_NAMES=vaultwarden.innojacent.com
+```
+
+```yaml
+services:
+  route53-updater-teknrd:
+    image: ghcr.io/c1aytonnet/route53-updater:latest
+    container_name: route53-updater-teknrd
+    restart: unless-stopped
+    env_file:
+      - ./route53-updater/teknrd.env
+    environment:
+      AWS_REGION: us-east-1
+      UPDATE_IPV4: "true"
+      UPDATE_IPV6: "false"
+      CHECK_INTERVAL: "300"
+      TTL: "300"
+
+  route53-updater-innojacent:
+    image: ghcr.io/c1aytonnet/route53-updater:latest
+    container_name: route53-updater-innojacent
+    restart: unless-stopped
+    env_file:
+      - ./route53-updater/innojacent.env
+    environment:
+      AWS_REGION: us-east-1
+      UPDATE_IPV4: "true"
+      UPDATE_IPV6: "false"
+      CHECK_INTERVAL: "300"
+      TTL: "300"
+```
 
 #### Option B: Building from Source
 
@@ -527,8 +576,9 @@ Look for error messages at the top of the output.
 - Rate limiting prevents API abuse (max 1 update per 30 seconds per record)
 - All inputs are validated and sanitized
 - New installs can use [examples/route53-policy.json](examples/route53-policy.json) as a least-privilege IAM policy scoped to one hosted zone
+- The updater only requires `route53:ListResourceRecordSets` and `route53:ChangeResourceRecordSets` for the hosted zone it manages
 
-Existing installations do not need to change IAM permissions if the updater is already working. The example policy is provided for new installs or for users who want to tighten a broader Route 53 policy.
+Existing installations do not need to change IAM permissions if the updater is already working. The example policy is provided for new installs or for users who want to tighten a broader Route 53 policy. For multiple hosted zones, you can use separate IAM credentials scoped per zone, or shared credentials authorized for all hosted zones those updater instances manage.
 
 ## License
 
